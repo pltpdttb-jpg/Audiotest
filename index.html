@@ -73,6 +73,7 @@
         // ==========================================
         // 1. CONFIGURATION
         // ==========================================
+        // ⚠️ หมายเหตุ: ตรวจสอบให้แน่ใจว่า API KEY นี้ใช้งานได้จริง (หากหมดอายุ ต้องนำ Key จาก Google AI Studio มาใส่แทน)
         const GEMINI_API_KEY = "AIzaSyDhCVCNrx2WiNh9pDT24HI5eomrt4KtuUg";
         const SUPABASE_URL = "https://lyfqqrofqbyfezwxwhph.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5ZnFxcm9mcWJ5ZmV6d3h3aHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0ODc3MTAsImV4cCI6MjA4OTA2MzcxMH0.U5rhRSSTplQbcXBL16odRMRL26dy1RCxC_6jkHjhaWA";
@@ -106,7 +107,6 @@
                         if (rData) setRubrics(rData);
                     } catch (e) { console.error("Error loading rubrics", e); }
                     
-                    // ✅ Fix 1: ดึงประวัติการ Login จาก LocalStorage ป้องกันเบราว์เซอร์รีเฟรชตอนขอไมค์
                     const savedUser = localStorage.getItem('ttb_audio_user');
                     if (savedUser) {
                         const parsedUser = JSON.parse(savedUser);
@@ -129,7 +129,6 @@
                 const { data } = await supabase.from('users').select('*').eq('employee_id', empId).ilike('first_name_en', fName).single();
                 if (data && data.role === 'Candidate') {
                     setUser(data);
-                    // ✅ บันทึก Login Session
                     localStorage.setItem('ttb_audio_user', JSON.stringify(data));
                     await loadUserSubmissions(data.employee_id);
                 } else {
@@ -181,20 +180,18 @@
         // 5. DASHBOARD & EXAM FLOW
         // ==========================================
         function Dashboard({ user, rubrics, submissions, refreshData, onLogout }) {
-            const [view, setView] = useState('list'); // 'list', 'exam', 'result'
-            const [examQuestions, setExamQuestions] = useState([]); // เก็บคำถาม 3 ข้อ
-            const [currentStep, setCurrentStep] = useState(0); // ลำดับข้อ 0, 1, 2
+            const [view, setView] = useState('list'); 
+            const [examQuestions, setExamQuestions] = useState([]); 
+            const [currentStep, setCurrentStep] = useState(0); 
             const [lastResult, setLastResult] = useState(null);
 
             const startExam = async () => {
                 if(rubrics.length === 0) return alert("ไม่พบข้อมูลคำถามในระบบ");
                 
                 try {
-                    // ✅ Fix 2: ขอสิทธิเข้าถึงไมโครโฟนล่วงหน้าก่อนเริ่มสุ่มคำถาม ป้องกันหน้าจอเด้ง
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    stream.getTracks().forEach(track => track.stop()); // ขอเสร็จแล้วปิดไมค์ไว้ก่อน
+                    stream.getTracks().forEach(track => track.stop()); 
                     
-                    // สุ่มคำถาม 3 หมวดหมู่ (Product, Invest, Objection)
                     const pkQs = rubrics.filter(r => r.category === 'Product Knowledge');
                     const invQs = rubrics.filter(r => r.category === 'Investment Knowledge');
                     const objQs = rubrics.filter(r => r.category === 'Objection Handling');
@@ -227,7 +224,7 @@
                     setCurrentStep(currentStep + 1);
                     setView('exam');
                 } else {
-                    setView('list'); // จบ 3 ข้อ กลับหน้าหลัก
+                    setView('list'); 
                 }
             };
 
@@ -280,19 +277,18 @@
         // 6. RECORDING SCREEN (Audio + Supabase + Gemini)
         // ==========================================
         function RecordingScreen({ user, question, step, onCancel, onComplete }) {
-            const [status, setStatus] = useState('idle'); // idle, recording, processing
+            const [status, setStatus] = useState('idle'); 
             const [time, setTime] = useState(0);
-            const [prepTime, setPrepTime] = useState(120); // ✅ เวลาเตรียมตัว 2 นาที (120 วินาที)
+            const [prepTime, setPrepTime] = useState(120); // 120 วินาที = 2 นาที
             const [audioUrl, setAudioUrl] = useState(null);
             const [errorMsg, setErrorMsg] = useState('');
             
             const mediaRecorder = useRef(null);
             const audioChunks = useRef([]);
             const timerRef = useRef(null);
-            const recordingTimeRef = useRef(0); // ใช้เก็บเวลาอัดเสียงเพื่อความแม่นยำ
+            const recordingTimeRef = useRef(0); 
             const mimeType = useRef('');
 
-            // ✅ Effect สำหรับนับเวลาเตรียมตัว 2 นาที
             useEffect(() => {
                 let pTimer;
                 if (status === 'idle' && prepTime > 0) {
@@ -303,7 +299,6 @@
                 return () => clearInterval(pTimer);
             }, [status, prepTime]);
 
-            // ✅ Effect สำหรับจับเวลาขณะอัดเสียง
             useEffect(() => {
                 return () => { if(timerRef.current) clearInterval(timerRef.current); };
             }, []);
@@ -314,7 +309,6 @@
                 return `${m}:${s}`;
             };
 
-            // ✅ ฟังก์ชันปรับตกอัตโนมัติหากไม่ยอมอัดเสียงใน 2 นาที
             const handlePrepTimeout = async () => {
                 setStatus('processing');
                 setErrorMsg('หมดเวลาเตรียมตัว 2 นาที! ระบบกำลังประเมินผลเป็น 0 คะแนน...');
@@ -330,7 +324,7 @@
                         ai_feedback: "ผู้สอบไม่ได้เริ่มบันทึกเสียงภายในเวลาที่กำหนด (2 นาที) เพื่อป้องกันการเตรียมสคริปต์ ระบบจึงทำการปรับตกและให้ 0 คะแนนในข้อนี้"
                     };
                     const { data: dbData, error: dbErr } = await supabase.from('audio_submissions').insert([newRecord]).select().single();
-                    if(dbErr) throw new Error("บันทึกข้อมูลลงฐานข้อมูลไม่สำเร็จ (Database Error)");
+                    if(dbErr) throw new Error("บันทึกข้อมูลลงฐานข้อมูลไม่สำเร็จ");
                     
                     onComplete(dbData);
                 } catch (err) {
@@ -344,12 +338,11 @@
                 setErrorMsg('');
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    // ลองหา mimeType ที่ Browser รองรับ
                     const types = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/aac', 'audio/ogg'];
                     for (let type of types) {
                         if (MediaRecorder.isTypeSupported(type)) { mimeType.current = type; break; }
                     }
-                    if(!mimeType.current) mimeType.current = 'audio/webm'; // fallback
+                    if(!mimeType.current) mimeType.current = 'audio/webm'; 
 
                     mediaRecorder.current = new MediaRecorder(stream, { mimeType: mimeType.current });
                     audioChunks.current = [];
@@ -359,7 +352,6 @@
                     };
 
                     mediaRecorder.current.onstop = () => {
-                        // ✅ ป้องกันปัญหาอัดเสียงสั้นเกินไป หรือไม่มีเสียง
                         if (recordingTimeRef.current < 2 || audioChunks.current.length === 0) {
                             setErrorMsg("⚠️ เวลาบันทึกเสียงสั้นเกินไป กรุณาพูดอธิบายรายละเอียดให้ชัดเจนแล้วกดบันทึกใหม่");
                             setStatus('idle');
@@ -367,7 +359,7 @@
                         }
 
                         const audioBlob = new Blob(audioChunks.current, { type: mimeType.current });
-                        if (audioBlob.size < 1024) { // ขนาดไฟล์เล็กเกินไป (ไม่ถึง 1KB)
+                        if (audioBlob.size < 1024) { 
                             setErrorMsg("⚠️ ไม่พบข้อมูลเสียง หรือไฟล์เสียงมีขนาดเล็กผิดปกติ กรุณาตรวจสอบไมโครโฟนและลองใหม่");
                             setStatus('idle');
                             return;
@@ -375,7 +367,7 @@
 
                         const url = URL.createObjectURL(audioBlob);
                         setAudioUrl(url);
-                        processSubmission(audioBlob); // ส่งสอบอัตโนมัติเมื่อกดหยุด
+                        processSubmission(audioBlob); 
                     };
 
                     mediaRecorder.current.start(200);
@@ -396,23 +388,22 @@
             const stopRecording = () => {
                 if (mediaRecorder.current && status === 'recording') {
                     mediaRecorder.current.stop();
-                    mediaRecorder.current.stream.getTracks().forEach(track => track.stop()); // ปิดไมค์
+                    mediaRecorder.current.stream.getTracks().forEach(track => track.stop()); 
                     clearInterval(timerRef.current);
                     setStatus('processing');
                 }
             };
 
-            // 🔥 หัวใจหลัก: อัปโหลด Supabase + ส่งให้ Gemini ตรวจ (พร้อม Error Handling ละเอียด)
             const processSubmission = async (audioBlob) => {
                 try {
-                    // 1. Upload to Supabase Storage
+                    // 1. Upload
                     const fileName = `${user.employee_id}_${Date.now()}.${mimeType.current.includes('mp4') ? 'mp4' : 'webm'}`;
                     const { data: uploadData, error: uploadErr } = await supabase.storage.from('exam_audios').upload(fileName, audioBlob, { contentType: mimeType.current });
                     if(uploadErr) throw new Error("อัปโหลดไฟล์เสียงไม่สำเร็จ (Supabase Storage Error)");
                     
                     const publicUrl = supabase.storage.from('exam_audios').getPublicUrl(fileName).data.publicUrl;
 
-                    // 2. Convert Blob to Base64 for Gemini
+                    // 2. Base64
                     const base64Audio = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
@@ -420,7 +411,10 @@
                         reader.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์เสียงในอุปกรณ์ของคุณได้"));
                     });
 
-                    // 3. Call Gemini API (Audio Understanding)
+                    // 3. Gemini Call
+                    // ✅ แก้ไข: เปลี่ยนไปใช้ Model Public Standard ที่รองรับ Audio แน่นอน 100% ไม่เกิด 404
+                    const modelName = "gemini-1.5-flash"; 
+                    
                     const sysPrompt = `คุณคือหัวหน้าเทรนเนอร์ผู้เชี่ยวชาญผลิตภัณฑ์ 'ttb US Multi-Asset Index Principal Protect 15/5'
 จงฟังไฟล์เสียงคำตอบของผู้สอบ (ซึ่งอาจมีเสียงรบกวนหรือคำศัพท์ทับศัพท์เฉพาะทาง)
 หน้าที่ของคุณคือ:
@@ -446,12 +440,12 @@
                         generationConfig: { responseMimeType: "application/json" }
                     };
 
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
                     });
                     
                     if (!res.ok) {
-                        throw new Error(`การเชื่อมต่อระบบ AI ขัดข้อง (API Timeout / Error ${res.status})`);
+                        throw new Error(`การเชื่อมต่อระบบ AI ขัดข้อง (API Timeout / Error ${res.status}) - โปรดตรวจสอบ API Key ว่าถูกต้องและมีโควต้าเหลืออยู่หรือไม่`);
                     }
 
                     const aiData = await res.json();
@@ -469,7 +463,7 @@
                         throw new Error("เสียงไม่ชัดเจน หรือ AI ไม่สามารถถอดความและให้คะแนนจากเสียงนี้ได้ กรุณาบันทึกใหม่");
                     }
 
-                    // 4. Save everything to Supabase DB
+                    // 4. Save DB
                     const newRecord = {
                         employee_id: user.employee_id,
                         first_name_en: user.first_name_en,
@@ -484,7 +478,6 @@
                     const { data: dbData, error: dbErr } = await supabase.from('audio_submissions').insert([newRecord]).select().single();
                     if(dbErr) throw new Error("บันทึกข้อมูลลงฐานข้อมูลไม่สำเร็จ (Database Error)");
 
-                    // 5. Done! Show result
                     onComplete(dbData);
 
                 } catch (err) {
@@ -514,7 +507,6 @@
                         <div className="mt-auto mb-10 flex flex-col items-center justify-center w-full">
                             {status === 'idle' && (
                                 <div className="text-center animate-fade-in w-full">
-                                    {/* ✅ หน้าจอแสดงเวลานับถอยหลัง 2 นาที (เปลี่ยนเป็นสีแดงเตือนเมื่อเหลือน้อยกว่า 30 วิ) */}
                                     <div className={`mb-6 p-4 rounded-2xl border-2 transition-colors ${prepTime <= 30 ? 'bg-red-50 border-red-200 text-danger animate-pulse' : 'bg-blue-50 border-blue-100 text-brandBlue'}`}>
                                         <p className="text-xs font-black uppercase tracking-widest mb-1">เวลาเตรียมตัว (ห้ามเกิน 2 นาที)</p>
                                         <p className="text-3xl font-black">{formatTime(prepTime)}</p>
@@ -593,7 +585,6 @@
                         </div>
                     </div>
                     
-                    {/* ✅ ปุ่มกดไปข้อถัดไป หรือ ปุ่มเสร็จสิ้น */}
                     <div className="absolute bottom-0 w-full bg-white px-6 py-5 border-t border-gray-50 z-20">
                         <button onClick={onNext} className={`w-full font-black py-4 rounded-[20px] btn-3d uppercase tracking-widest text-sm transition-colors ${isLast ? 'bg-success text-white hover:bg-green-600' : 'bg-brandBlue text-white hover:bg-blue-700'}`}>
                             {isLast ? 'เสร็จสิ้นการสอบ (Finish)' : 'ดำเนินการต่อข้อถัดไป (Next)'}
@@ -608,6 +599,5 @@
     </script>
 </body>
 </html>
-
 
 
