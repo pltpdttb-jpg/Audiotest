@@ -69,8 +69,8 @@
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5ZnFxcm9mcWJ5ZmV6d3h3aHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0ODc3MTAsImV4cCI6MjA4OTA2MzcxMH0.U5rhRSSTplQbcXBL16odRMRL26dy1RCxC_6jkHjhaWA";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 💡 กำหนด URL ของระบบหลัก (Gateway)
-        const MASTER_HUB_URL = "https://pltpdttb-jpg.github.io/Audiotest/";
+        // 💡 แก้ไข: ระบุเป้าหมายเป็นหน้า Dashboad หลักที่ถูกต้อง
+        const MASTER_HUB_URL = "https://pltpdttb-jpg.github.io/certify/";
 
         const Icons = {
             Mic: () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
@@ -90,7 +90,6 @@
             const [isLoading, setIsLoading] = useState(true);
             const [authStatus, setAuthStatus] = useState('กำลังตรวจสอบสิทธิ์เข้าถึง...');
             
-            // State สำหรับจัดการ Error แบบ UI (ลดการใช้ alert ที่ทำให้หมุนค้าง)
             const [accessError, setAccessError] = useState(null);
 
             useEffect(() => {
@@ -99,7 +98,6 @@
                     setAccessError(null);
                     
                     try {
-                        // 1. ดึงรหัสพนักงานจาก URL
                         const urlParams = new URLSearchParams(window.location.search);
                         const uid = urlParams.get('uid');
 
@@ -111,8 +109,6 @@
                         }
 
                         setAuthStatus('กำลังค้นหาข้อมูลผู้ใช้งาน...');
-                        
-                        // 2. ดึงข้อมูล User จาก Supabase
                         const { data: userData, error: userErr } = await supabase.from('users').select('*').eq('employee_id', uid).maybeSingle();
                         if (userErr || !userData || userData.role !== 'Candidate') {
                             setAccessError("ไม่พบข้อมูลผู้เข้าสอบในระบบ หรือคุณไม่มีสิทธิ์เข้าถึง");
@@ -121,11 +117,8 @@
                         }
 
                         setAuthStatus('กำลังตรวจสอบผลการสอบทฤษฎี...');
-                        
-                        // 3. THE GATEKEEPER: ตรวจสอบสถานะการสอบ
                         const { data: sessData, error: sessErr } = await supabase.from('exam_sessions').select('*').eq('user_id', userData.id).maybeSingle();
                         
-                        // 🚨 เช็กว่าผ่านด่าน 1 ทฤษฎีหรือยัง
                         if (!sessData || sessData.pk_passed !== true) {
                             setAccessError("การเข้าถึงถูกปฏิเสธ!\nคุณต้องสอบผ่านภาคทฤษฎี 30 ข้อ (ด่านที่ 1) ก่อน\nจึงจะปลดล็อกระบบสัมภาษณ์อัดเสียงได้");
                             setIsLoading(false);
@@ -133,12 +126,9 @@
                         }
 
                         setAuthStatus('กำลังเตรียมข้อมูลคำถาม...');
-                        
-                        // 4. โหลดคำถามทั้งหมด
                         const { data: rubricsData } = await supabase.from('trainer_rubrics').select('*');
                         if (rubricsData) setRubrics(rubricsData);
 
-                        // 5. ผ่านด่านฉลุย
                         setUser(userData);
                         setSessionState(sessData);
                         setIsLoading(false);
@@ -153,12 +143,11 @@
                 initGatekeeper();
             }, []);
 
-            // นำทางกลับไปยังลิงก์ที่ระบุ
+            // บังคับเปลี่ยนหน้าไปที่ https://pltpdttb-jpg.github.io/certify/
             const handleBackToHub = () => {
-                window.location.href = MASTER_HUB_URL;
+                window.location.replace(MASTER_HUB_URL);
             };
 
-            // หน้าจอแสดงข้อผิดพลาด (Gatekeeper Error UI)
             if (accessError) {
                 return (
                     <div className="h-screen w-full flex flex-col items-center justify-center bg-surface p-6 animate-fade-in">
@@ -166,7 +155,7 @@
                             <div className="w-16 h-16 bg-red-50 text-danger rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🚨</div>
                             <h2 className="text-xl font-extrabold text-brandNavy mb-3">Access Denied</h2>
                             <p className="text-sm font-bold text-slate-500 mb-8 leading-relaxed whitespace-pre-line">{accessError}</p>
-                            <button onClick={handleBackToHub} className="w-full bg-brandNavy text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-slate-800 transition-colors btn-modern">
+                            <button type="button" onClick={handleBackToHub} className="w-full bg-brandNavy text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-slate-800 transition-colors btn-modern">
                                 กลับสู่หน้าหลัก (Dashboard)
                             </button>
                         </div>
@@ -174,7 +163,6 @@
                 );
             }
 
-            // หน้าจอโหลดข้อมูล
             if (isLoading) {
                 return (
                     <div className="h-screen w-full flex flex-col items-center justify-center bg-surface text-primary font-bold">
@@ -201,7 +189,6 @@
             const [showRules, setShowRules] = useState(false);
             
             useEffect(() => {
-                // โชว์กติกาเฉพาะคนที่สถานะพร้อมสอบ (ยังไม่ผ่านการประเมิน, ไม่ถูกล็อกจาก Trainer, ไม่ติดสถานะ Failed)
                 if (sessionState?.pk_passed && !sessionState?.trainer_passed && sessionState?.eval_lock_mode === 'AVAILABLE' && sessionState?.overall_status !== 'FAILED') {
                     setShowRules(true);
                 }
@@ -215,24 +202,28 @@
             const startExam = async () => {
                 if(rubrics.length === 0) return alert("ไม่พบข้อมูลคำถามในระบบ");
                 
-                // บล็อก 1: สอบตกแล้ว ต้องรอ Trainer เปิดสิทธิ์ Retake
                 if(isFailed) {
                     alert('⚠️ คุณไม่สามารถเริ่มสอบได้\nผลประเมินล่าสุดของคุณคือ "ไม่ผ่าน" กรุณาติดต่อเทรนเนอร์ประจำพื้นที่ เพื่อเปิดสิทธิ์สอบซ่อม (Retake) ครับ');
                     return;
                 }
 
-                // บล็อก 2: โดน Trainer ล็อกสิทธิ์ให้ไปสัมภาษณ์สด
                 if (isLockedLive) {
                     alert('⚠️ เทรนเนอร์ได้ระบุให้คุณเข้ารับการประเมินแบบ "สัมภาษณ์สด"\nระบบบันทึกเสียงจึงถูกระงับการใช้งานครับ');
                     return;
                 }
 
                 try {
-                    // ขอสิทธิ์ไมโครโฟน
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     stream.getTracks().forEach(track => track.stop()); 
                     
-                    // สุ่มคำถาม
+                    // ลบไฟล์ขยะที่อาจค้างอยู่จากการอัดรอบก่อนหน้าทิ้ง
+                    try {
+                        const { data: oldAudio } = await supabase.from('audio_submissions').select('audio_url').eq('employee_id', user.employee_id);
+                        if(oldAudio && oldAudio.length > 0) {
+                            await supabase.from('audio_submissions').delete().eq('employee_id', user.employee_id);
+                        }
+                    } catch(e) { console.log('Clear old data error', e); }
+
                     const pkQs = rubrics.filter(r => r.category === 'Product Knowledge');
                     const invQs = rubrics.filter(r => r.category === 'Investment Knowledge');
                     const objQs = rubrics.filter(r => r.category === 'Objection Handling');
@@ -245,7 +236,6 @@
                     const q2 = invQs[Math.floor(Math.random() * invQs.length)];
                     const q3 = objQs[Math.floor(Math.random() * objQs.length)];
 
-                    // ล็อกฐานข้อมูลเป็น AUDIO ป้องกันการชนกันกับ Trainer
                     await supabase.from('exam_sessions').update({ eval_lock_mode: 'AUDIO' }).eq('user_id', user.id);
 
                     setExamQuestions([q1, q2, q3]);
@@ -265,10 +255,8 @@
                 if (currentStep < 2) {
                     setCurrentStep(currentStep + 1);
                 } else {
-                    // คำนวณจำนวนครั้งที่สอบ (Attempt Tracking)
                     const currentAttempts = (sessionState?.trainer_attempts || 0) + 1;
                     
-                    // อัปเดตสถานะและจำนวนครั้งทันทีที่ส่งครบ 3 ข้อ
                     await supabase.from('exam_sessions').update({ 
                         eval_lock_mode: 'AVAILABLE', 
                         overall_status: 'IN_PROGRESS',
@@ -285,7 +273,6 @@
             return (
                 <div className="flex-1 flex flex-col bg-surface overflow-hidden relative">
                     
-                    {/* Modal แสดงกติกาการสอบ */}
                     {showRules && (
                         <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-brandNavy/70 backdrop-blur-sm animate-fade-in">
                             <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl animate-pop-in relative overflow-hidden">
@@ -298,7 +285,7 @@
                                     <div className="flex items-start"><span className="text-danger font-black mr-2">2.</span><p className="text-xs font-bold text-textMain leading-relaxed">เมื่อกดเข้าสู่ข้อสอบ คุณจะมีเวลาเตรียมตัว <span className="text-danger font-black">1 นาที</span> ต่อข้อ</p></div>
                                     <div className="flex items-start"><span className="text-danger font-black mr-2">3.</span><p className="text-xs font-bold text-textMain leading-relaxed">⚠️ <span className="text-danger">คุณต้องกดปุ่ม "ไมโครโฟน" ก่อนหมดเวลา</span> หากปล่อยจนเวลาหมด ระบบจะปรับตกข้อนั้นอัตโนมัติ</p></div>
                                 </div>
-                                <button onClick={() => setShowRules(false)} className="w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm shadow-[0_8px_20px_rgba(108,92,231,0.25)]">รับทราบกติกา</button>
+                                <button type="button" onClick={() => setShowRules(false)} className="w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm shadow-[0_8px_20px_rgba(108,92,231,0.25)]">รับทราบกติกา</button>
                             </div>
                         </div>
                     )}
@@ -361,11 +348,11 @@
                                     </span>
                                 )}
                                 
-                                <button onClick={startExam} className="mt-5 w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm shadow-[0_8px_20px_rgba(108,92,231,0.25)]">เริ่มอัดเสียง (Start)</button>
+                                <button type="button" onClick={startExam} className="mt-5 w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm shadow-[0_8px_20px_rgba(108,92,231,0.25)]">เริ่มอัดเสียง (Start)</button>
                             </div>
                         )}
                         
-                        <button onClick={onLogout} className="mt-auto pt-4 text-slate-400 hover:text-danger text-xs font-bold flex items-center justify-center transition-colors pb-4">
+                        <button type="button" onClick={onLogout} className="mt-auto pt-4 text-slate-400 hover:text-danger text-xs font-bold flex items-center justify-center transition-colors pb-4">
                             <Icons.Back /> <span className="ml-2 uppercase tracking-widest">กลับสู่หน้าแดชบอร์ดหลัก</span>
                         </button>
                     </div>
@@ -374,7 +361,7 @@
         }
 
         // ==========================================
-        // RECORDING SCREEN (UI และระบบการบันทึก)
+        // RECORDING SCREEN 
         // ==========================================
         function RecordingScreen({ user, question, step, onCancel, onNext }) {
             const [status, setStatus] = useState('idle'); 
@@ -540,7 +527,7 @@
             return (
                 <div className="flex-1 flex flex-col bg-secondary/10 relative overflow-hidden animate-slide-up">
                     <div className="pt-10 px-6 pb-20 relative shrink-0 text-center">
-                        <button onClick={onCancel} className="absolute top-8 left-6 text-brandNavy p-2 bg-white/50 rounded-full backdrop-blur-sm shadow-sm"><Icons.Back /></button>
+                        <button type="button" onClick={onCancel} className="absolute top-8 left-6 text-brandNavy p-2 bg-white/50 rounded-full backdrop-blur-sm shadow-sm"><Icons.Back /></button>
                         <div className="w-20 h-20 bg-white rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-sm mb-4 mt-4 animate-float">💬</div>
                         <span className="bg-primary text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest">{question.category}</span>
                         <h2 className="text-xs font-bold text-textMuted uppercase tracking-widest mt-3">Question {step + 1} of 3</h2>
@@ -559,7 +546,7 @@
                                         <span className="text-[10px] font-extrabold uppercase tracking-widest mb-1">เวลาเตรียมตัว (ห้ามเกิน 1 นาที)</span>
                                         <span className="text-3xl font-black">{formatTime(prepTime)}</span>
                                     </div>
-                                    <button onClick={startRecording} className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(108,92,231,0.4)] btn-modern mx-auto"><Icons.Mic /></button>
+                                    <button type="button" onClick={startRecording} className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(108,92,231,0.4)] btn-modern mx-auto"><Icons.Mic /></button>
                                     <p className="text-textMuted text-[10px] font-bold mt-4 uppercase tracking-widest">Tap to Record</p>
                                 </div>
                             )}
@@ -571,7 +558,7 @@
                                         <span className="text-3xl font-black font-mono">{formatTime(time)}</span>
                                     </div>
                                     <div className="relative flex justify-center items-center w-full">
-                                        <button onClick={stopRecording} className="w-20 h-20 bg-danger text-white rounded-full flex items-center justify-center relative z-10 shadow-lg btn-modern"><Icons.Stop /></button>
+                                        <button type="button" onClick={stopRecording} className="w-20 h-20 bg-danger text-white rounded-full flex items-center justify-center relative z-10 shadow-lg btn-modern"><Icons.Stop /></button>
                                     </div>
                                     <p className="text-textMuted text-[10px] font-bold mt-8 uppercase tracking-widest">Tap to Stop & Submit</p>
                                 </div>
@@ -616,7 +603,7 @@
                         </div>
                     </div>
                     <div className="absolute bottom-0 w-full bg-white/90 backdrop-blur-md px-6 py-5 border-t border-gray-100 z-20">
-                        <button onClick={onNext} className={`w-full font-black py-4 rounded-xl btn-modern uppercase tracking-widest text-[13px] shadow-soft-3d ${isLast ? 'bg-success text-white' : 'bg-primary text-white'}`}>
+                        <button type="button" onClick={onNext} className={`w-full font-black py-4 rounded-xl btn-modern uppercase tracking-widest text-[13px] shadow-soft-3d ${isLast ? 'bg-success text-white' : 'bg-primary text-white'}`}>
                             {isLast ? 'ส่งข้อสอบทั้งหมด (Finish)' : 'ดำเนินการต่อข้อถัดไป (Next)'}
                         </button>
                     </div>
@@ -634,7 +621,7 @@
                         <p className="text-xs font-bold text-textMuted mb-8 leading-relaxed">
                             ระบบได้บันทึกข้อมูลการทดสอบของท่านเรียบร้อยแล้ว<br/>โปรดรอรับแจ้งผลจาก Trainer ในลำดับถัดไป
                         </p>
-                        <button onClick={onHome} className="w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm mb-3 shadow-[0_8px_20px_rgba(108,92,231,0.25)]">
+                        <button type="button" onClick={onHome} className="w-full bg-primary text-white font-bold py-3.5 rounded-xl btn-modern text-sm mb-3 shadow-[0_8px_20px_rgba(108,92,231,0.25)]">
                             กลับหน้าหลัก (Dashboard)
                         </button>
                     </div>
