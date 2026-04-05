@@ -69,6 +69,9 @@
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5ZnFxcm9mcWJ5ZmV6d3h3aHBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0ODc3MTAsImV4cCI6MjA4OTA2MzcxMH0.U5rhRSSTplQbcXBL16odRMRL26dy1RCxC_6jkHjhaWA";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // 💡 กำหนด URL ของระบบหลัก (Gateway)
+        const MASTER_HUB_URL = "https://pltpdttb-jpg.github.io/Audiotest/";
+
         const Icons = {
             Mic: () => <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
             Stop: () => <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4" ry="4"></rect></svg>,
@@ -100,7 +103,7 @@
                         const urlParams = new URLSearchParams(window.location.search);
                         const uid = urlParams.get('uid');
 
-                        // ดีดกลับถ้ายูสเซอร์เข้า URL มาดื้อๆ
+                        // 🚨 ดีดกลับถ้ายูสเซอร์เข้า URL มาดื้อๆ
                         if (!uid) {
                             setAccessError("ไม่อนุญาตให้เข้าถึงหน้านี้โดยตรง\nกรุณาเข้าสู่ระบบผ่านหน้าแดชบอร์ดหลัก (Step 1)");
                             setIsLoading(false);
@@ -122,7 +125,7 @@
                         // 3. THE GATEKEEPER: ตรวจสอบสถานะการสอบ
                         const { data: sessData, error: sessErr } = await supabase.from('exam_sessions').select('*').eq('user_id', userData.id).maybeSingle();
                         
-                        // ดีดกลับถ้ายังไม่ผ่านด่าน 1
+                        // 🚨 เช็กว่าผ่านด่าน 1 ทฤษฎีหรือยัง
                         if (!sessData || sessData.pk_passed !== true) {
                             setAccessError("การเข้าถึงถูกปฏิเสธ!\nคุณต้องสอบผ่านภาคทฤษฎี 30 ข้อ (ด่านที่ 1) ก่อน\nจึงจะปลดล็อกระบบสัมภาษณ์อัดเสียงได้");
                             setIsLoading(false);
@@ -150,8 +153,9 @@
                 initGatekeeper();
             }, []);
 
+            // นำทางกลับไปยังลิงก์ที่ระบุ
             const handleBackToHub = () => {
-                window.location.href = './index.html';
+                window.location.href = MASTER_HUB_URL;
             };
 
             // หน้าจอแสดงข้อผิดพลาด (Gatekeeper Error UI)
